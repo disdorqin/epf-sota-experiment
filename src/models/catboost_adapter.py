@@ -275,6 +275,10 @@ class CatBoostAdapter:
         pred = self.predict(day_df)
         day_df["y_pred"] = pred
 
+        # Merge y_true from original 'y' column if available
+        if "y" in day_df.columns:
+            day_df["y_true"] = day_df["y"]
+
         result = make_long_table(
             day_df,
             model_name=self.model_name,

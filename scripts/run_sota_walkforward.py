@@ -58,7 +58,10 @@ def parse_args():
     parser.add_argument("--models", type=str, default="catboost_sota,chronos2_zero_shot",
                         help="Comma-separated model names: catboost_sota, chronos2_zero_shot")
     parser.add_argument("--output-root", type=str, default="outputs/sota_walkforward")
-    parser.add_argument("--train-months", type=int, default=12)
+    parser.add_argument("--train-window", type=str, default="all", choices=["all", "months"],
+                        help="'all' = use all available history; 'months' = use --train-months")
+    parser.add_argument("--train-months", type=int, default=12,
+                        help="Training window in months (only used when --train-window=months)")
     parser.add_argument("--device", type=str, default="CPU", help="CatBoost device: CPU/GPU")
     return parser.parse_args()
 
@@ -246,10 +249,12 @@ def main():
         "end": args.end,
         "tasks": tasks,
         "models": models,
-        "train_months": args.train_months,
+        "train_window": args.train_window,
+        "train_months": args.train_months if args.train_window == "months" else "all",
         "started_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "chronos_fallback": {},
         "failed_dates": [],
+        "baselines_loaded": {},
     }
 
     for task in tasks:
@@ -294,8 +299,16 @@ def main():
 
                 try:
                     if model_name == "catboost_sota":
-                        # Train CatBoost on data up to target date
-                        train_df = full_feature_df[full_feature_df["ds"] < target_dt].copy()
+                        # Determine training window
+                        if args.train_window == "months":
+                            train_start = target_dt - pd.DateOffset(months=args.train_months)
+                            train_df = full_feature_df[
+                                (full_feature_df["ds"] >= train_start) & (full_feature_df["ds"] < target_dt)
+                            ].copy()
+                        else:
+                            # 'all' = use all data before target date
+                            train_df = full_feature_df[full_feature_df["ds"] < target_dt].copy()
+
                         if len(train_df) < 2000:
                             logger.warning(f"    Insufficient training data ({len(train_df)} rows). Skipping.")
                             run_manifest["failed_dates"].append(f"{target_date_str}:{model_name}:no_train_data")
@@ -330,36 +343,136 @@ def main():
                     logger.error(traceback.format_exc())
                     run_manifest["failed_dates"].append(f"{target_date_str}:{model_name}:{task}:{str(e)[:100]}")
 
+    # ── Try to load baseline outputs from source repo ──
+    baseline_map = {}
+    if args.source_repo:
+        repo = Path(args.source_repo)
+        logger.info("Checking for original baseline outputs...")
+        for task in tasks:
+            for sota_model in models:
+                baseline_model = None
+                if sota_model == "catboost_sota":
+                    baseline_model = "lightgbm"
+                elif "chronos" in sota_model:
+                    baseline_model = "timesfm"
+                if baseline_model:
+                    candidates = []
+                    if baseline_model == "lightgbm":
+                        candidates = [
+                            repo / "fusion_runs" / task / "lightgbm_output.csv",
+                            repo / "lightGBM" / "outputs" / f"lightgbm_{task}.csv",
+                            repo / "outputs" / f"lightgbm_{task}.csv",
+                        ]
+                    elif baseline_model == "timesfm":
+                        candidates = [
+                            repo / "fusion_runs" / task / "timesfm_output.csv",
+                            repo / "TimesFM" / "output" / f"timesfm_{task}.csv",
+                            repo / "outputs" / f"timesfm_{task}.csv",
+                        ]
+                    for c in candidates:
+                        if c.exists():
+                            logger.info(f"  Baseline found: {c}")
+                            baseline_map[f"{baseline_model}_{task}"] = str(c)
+                            break
+        run_manifest["baselines_loaded"] = {
+            k: "found" for k in baseline_map
+        } if baseline_map else {"status": "not_found"}
+    else:
+        run_manifest["baselines_loaded"] = {"status": "no_source_repo"}
+
+    # Save baseline info to debug
+    baseline_path = output_root / "debug" / "baselines_found.json"
+    with open(str(baseline_path), "w", encoding="utf-8") as f:
+        json.dump(run_manifest["baselines_loaded"], f, ensure_ascii=False, indent=2)
+
     # ── Save all predictions ──
     _save_predictions(all_predictions, output_root)
 
     # ── Compute metrics ──
     if all_predictions:
+        logger.info(f"Computing metrics from {len(all_predictions)} prediction sets...")
         daily_metrics = _compute_daily_metrics(all_predictions)
-        daily_metrics.to_csv(str(output_root / "metrics" / "daily_metrics.csv"),
-                             index=False, encoding="utf-8-sig")
+        if not daily_metrics.empty:
+            daily_metrics.to_csv(str(output_root / "metrics" / "daily_metrics.csv"),
+                                 index=False, encoding="utf-8-sig")
+        else:
+            logger.warning("daily_metrics is empty — skipping save")
 
         period_metrics = _compute_period_metrics(all_predictions)
-        period_metrics.to_csv(str(output_root / "metrics" / "model_period_metrics.csv"),
-                              index=False, encoding="utf-8-sig")
+        if not period_metrics.empty:
+            period_metrics.to_csv(str(output_root / "metrics" / "model_period_metrics.csv"),
+                                  index=False, encoding="utf-8-sig")
+        else:
+            logger.warning("period_metrics is empty — skipping save")
 
         target_metrics = _compute_target_metrics(all_predictions)
-        target_metrics.to_csv(str(output_root / "metrics" / "model_target_metrics.csv"),
-                              index=False, encoding="utf-8-sig")
+        if not target_metrics.empty:
+            target_metrics.to_csv(str(output_root / "metrics" / "model_target_metrics.csv"),
+                                  index=False, encoding="utf-8-sig")
 
-        # Summary: best sMAPE per model/task
-        summary = target_metrics.groupby(["model_name", "task"]).agg(
-            avg_MAE=("MAE", "mean"),
-            avg_RMSE=("RMSE", "mean"),
-            avg_sMAPE=("sMAPE_floor50", "mean"),
-            avg_peak_MAE=("peak_MAE_q90", "mean"),
-            total_n=("n", "sum"),
-        ).reset_index()
-        summary.to_csv(str(output_root / "metrics" / "summary.csv"),
-                       index=False, encoding="utf-8-sig")
-        logger.info(f"\n{'='*60}")
-        logger.info("SUMMARY:")
-        print(summary.to_string())
+            # Summary: best sMAPE per model/task
+            required_cols = ["model_name", "task"]
+            missing = [c for c in required_cols if c not in target_metrics.columns]
+            if not missing:
+                summary = target_metrics.groupby(required_cols).agg(
+                    avg_MAE=("MAE", "mean"),
+                    avg_RMSE=("RMSE", "mean"),
+                    avg_sMAPE=("sMAPE_floor50", "mean"),
+                    avg_peak_MAE=("peak_MAE_q90", "mean"),
+                    avg_neg_hit_rate=("negative_price_hit_rate", "mean"),
+                    total_n=("n", "sum"),
+                ).reset_index()
+                summary.to_csv(str(output_root / "metrics" / "summary.csv"),
+                               index=False, encoding="utf-8-sig")
+                logger.info(f"\n{'='*60}")
+                logger.info("SUMMARY:")
+                print(summary.to_string())
+            else:
+                logger.warning(f"Cannot group summary — missing columns: {missing}")
+        else:
+            logger.warning("target_metrics is empty — skipping summary")
+
+    # ── Try to load baseline outputs from source repo ──
+    baseline_map = {}
+    if args.source_repo:
+        repo = Path(args.source_repo)
+        logger.info("Checking for original baseline outputs...")
+        for task in tasks:
+            for sota_model in models:
+                baseline_model = None
+                if sota_model == "catboost_sota":
+                    baseline_model = "lightgbm"
+                elif "chronos" in sota_model:
+                    baseline_model = "timesfm"
+                if baseline_model:
+                    candidates = []
+                    if baseline_model == "lightgbm":
+                        candidates = [
+                            repo / "fusion_runs" / task / "lightgbm_output.csv",
+                            repo / "lightGBM" / "outputs" / f"lightgbm_{task}.csv",
+                            repo / "outputs" / f"lightgbm_{task}.csv",
+                        ]
+                    elif baseline_model == "timesfm":
+                        candidates = [
+                            repo / "fusion_runs" / task / "timesfm_output.csv",
+                            repo / "TimesFM" / "output" / f"timesfm_{task}.csv",
+                            repo / "outputs" / f"timesfm_{task}.csv",
+                        ]
+                    for c in candidates:
+                        if c.exists():
+                            logger.info(f"  Baseline found: {c}")
+                            baseline_map[f"{baseline_model}_{task}"] = str(c)
+                            break
+        run_manifest["baselines_loaded"] = {
+            k: "found" for k in baseline_map
+        } if baseline_map else {"status": "not_found"}
+    else:
+        run_manifest["baselines_loaded"] = {"status": "no_source_repo"}
+
+    # Save baseline info to debug
+    baseline_path = output_root / "debug" / "baselines_found.json"
+    with open(str(baseline_path), "w", encoding="utf-8") as f:
+        json.dump(run_manifest["baselines_loaded"], f, ensure_ascii=False, indent=2)
 
     # ── Check issues ──
     issues = _check_nan_and_missing(all_predictions, expected_dates)
@@ -382,6 +495,13 @@ def main():
         logger.warning(f"Failed dates: {len(run_manifest['failed_dates'])}")
         for fd in run_manifest["failed_dates"][:10]:
             logger.warning(f"  {fd}")
+    baseline_status = run_manifest.get("baselines_loaded", {})
+    if baseline_status.get("status") == "not_found":
+        logger.info("Baseline outputs not found in source repo.")
+    elif baseline_status.get("status") == "no_source_repo":
+        logger.info("No --source-repo specified. Skipping baseline search.")
+    elif any("found" in str(v) for v in baseline_status.values()):
+        logger.info(f"Baselines loaded: {list(baseline_status.keys())}")
     logger.info(f"{'='*60}")
 
 
