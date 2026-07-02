@@ -82,6 +82,7 @@ class TiRexAdapter:
         self._model: Optional["ForecastModel"] = None
         self._unavailable_reason: Optional[str] = _TIREX_ERROR
         self._loaded: bool = False
+        self._last_quantile_debug: dict = {}
 
     @property
     def is_available(self) -> bool:
@@ -156,7 +157,8 @@ class TiRexAdapter:
             mean_np = np.resize(mean_np, self.prediction_length)
 
         # quantiles: (batch, num_quantiles, horizon) or (batch, horizon)
-        result = {"y_pred": mean_np}
+        result: dict[str, np.ndarray] = {"y_pred": mean_np}
+        quantile_debug = {}
 
         if hasattr(quantiles, "detach"):
             q_np = quantiles.detach().cpu().numpy()
@@ -165,29 +167,58 @@ class TiRexAdapter:
 
         # Squeeze batch dim
         if q_np.ndim == 3 and q_np.shape[0] == 1:
-            q_np = q_np.squeeze(0)  # (num_quantiles, horizon)
+            q_np = q_np.squeeze(0)
+
+        quantile_debug["raw_shape"] = list(q_np.shape) if hasattr(q_np, "shape") else None
 
         if q_np.ndim == 2:
-            n_q, h_q = q_np.shape
-            logger.info(f"TiRex quantiles shape: ({n_q}, {h_q})")
-            if h_q != self.prediction_length:
-                logger.warning(f"TiRex quantile horizon {h_q} != prediction_length {self.prediction_length}")
-            # Try to extract p10, p50, p90 by position
-            if n_q >= 9:
-                # Standard 9 quantiles [0.1..0.9]
-                result["y_pred_p10"] = _safe_resize(q_np[0], self.prediction_length)
-                result["y_pred_p50"] = _safe_resize(q_np[4], self.prediction_length)
-                result["y_pred_p90"] = _safe_resize(q_np[8], self.prediction_length)
-            elif n_q >= 3:
-                result["y_pred_p10"] = _safe_resize(q_np[0], self.prediction_length)
-                result["y_pred_p50"] = _safe_resize(q_np[n_q // 2], self.prediction_length)
-                result["y_pred_p90"] = _safe_resize(q_np[-1], self.prediction_length)
+            d0, d1 = q_np.shape
+            logger.info(f"TiRex quantiles shape: ({d0}, {d1}), prediction_length={self.prediction_length}")
+
+            # Determine which axis is horizon vs quantile
+            if d0 == 9 and d1 == self.prediction_length:
+                # (9, 24) → quantiles × horizon
+                logger.info("  → Interpreted as (num_quantiles, horizon)")
+                result["y_pred_p10"] = q_np[0, :]   # q=0.1
+                result["y_pred_p50"] = q_np[4, :]   # q=0.5
+                result["y_pred_p90"] = q_np[8, :]   # q=0.9
+                quantile_debug["interpretation"] = "quantiles_x_horizon"
+            elif d1 == 9 and d0 == self.prediction_length:
+                # (24, 9) → horizon × quantiles
+                logger.info("  → Interpreted as (horizon, num_quantiles)")
+                result["y_pred_p10"] = q_np[:, 0]   # q=0.1
+                result["y_pred_p50"] = q_np[:, 4]   # q=0.5
+                result["y_pred_p90"] = q_np[:, 8]   # q=0.9
+                quantile_debug["interpretation"] = "horizon_x_quantiles"
+            elif d0 == self.prediction_length:
+                # Assume (horizon, samples/quantiles)
+                mid_idx = d1 // 2
+                result["y_pred_p10"] = q_np[:, 0]
+                result["y_pred_p50"] = q_np[:, mid_idx]
+                result["y_pred_p90"] = q_np[:, -1]
+                quantile_debug["interpretation"] = "horizon_x_samples_auto"
+            elif d1 == self.prediction_length:
+                # Assume (samples/quantiles, horizon)
+                mid_idx = d0 // 2
+                result["y_pred_p10"] = q_np[0, :]
+                result["y_pred_p50"] = q_np[mid_idx, :]
+                result["y_pred_p90"] = q_np[-1, :]
+                quantile_debug["interpretation"] = "samples_x_horizon_auto"
+            else:
+                # Fallback: median across first axis
+                logger.warning(f"  → Ambiguous quantile shape ({d0},{d1}), using median across axis 0")
+                result["y_pred_p10"] = np.percentile(q_np, 10, axis=0)
+                result["y_pred_p50"] = np.median(q_np, axis=0)
+                result["y_pred_p90"] = np.percentile(q_np, 90, axis=0)
+                quantile_debug["interpretation"] = "ambiguous_median"
         elif q_np.ndim == 1 and len(q_np) >= 3:
             # (num_quantiles,) — scalar per quantile, broadcast to horizon
             result["y_pred_p10"] = np.full(self.prediction_length, q_np[0])
             result["y_pred_p50"] = np.full(self.prediction_length, q_np[len(q_np) // 2])
             result["y_pred_p90"] = np.full(self.prediction_length, q_np[-1])
+            quantile_debug["interpretation"] = "scalar_quantiles_broadcast"
 
+        self._last_quantile_debug = quantile_debug
         return result
 
     def predict_day(
@@ -262,4 +293,5 @@ class TiRexAdapter:
             "context_length": self.context_length,
             "prediction_length": self.prediction_length,
             "hf_model_id": self.hf_model_id,
+            "last_quantile_debug": self._last_quantile_debug,
         }

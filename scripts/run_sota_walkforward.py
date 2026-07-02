@@ -250,7 +250,7 @@ def main():
     # ── Walk-forward loop ──
     all_predictions = []
     chronos_fallback_info = {}
-    full_feature_df = None  # Will be built when needed
+    feature_df_by_task: dict[str, pd.DataFrame] = {}
     run_manifest = {
         "start": args.start,
         "end": args.end,
@@ -266,6 +266,17 @@ def main():
 
     for task in tasks:
         raw_df = raw_dayahead if task == "dayahead" else raw_realtime
+
+        # Build task-specific feature dataframe (used by CatBoost and TabPFN)
+        feat_df = build_features(raw_df)
+        feature_df_by_task[task] = feat_df
+        y_col_name = "dayahead" if task == "dayahead" else "realtime"
+        logger.info(f"Feature DF for {task}: {len(feat_df)} rows, target column={y_col_name}")
+        run_manifest.setdefault("feature_df_debug", {})[task] = {
+            "feature_df_task": task,
+            "feature_df_target_column": y_col_name,
+            "feature_df_rows": len(feat_df),
+        }
 
         for model_name in models:
             logger.info(f"\n{'='*60}")
@@ -309,10 +320,8 @@ def main():
                 logger.error(f"Unknown model: {model_name}")
                 continue
 
-            # ── For CatBoost: train once, then predict each day ──
-            if model_name == "catboost_sota":
-                # Build features on full data
-                full_feature_df = build_features(raw_df)
+            # ── For CatBoost: use pre-built task feature df ──
+            # (feature_df_by_task[task] was built at start of task loop)
 
             # ── Loop over target dates ──
             for target_date_str in expected_dates:
@@ -324,12 +333,12 @@ def main():
                         # Determine training window
                         if args.train_window == "months":
                             train_start = target_dt - pd.DateOffset(months=args.train_months)
-                            train_df = full_feature_df[
-                                (full_feature_df["ds"] >= train_start) & (full_feature_df["ds"] < target_dt)
+                            train_df = feature_df_by_task[task][
+                                (feature_df_by_task[task]["ds"] >= train_start) & (feature_df_by_task[task]["ds"] < target_dt)
                             ].copy()
                         else:
                             # 'all' = use all data before target date
-                            train_df = full_feature_df[full_feature_df["ds"] < target_dt].copy()
+                            train_df = feature_df_by_task[task][feature_df_by_task[task]["ds"] < target_dt].copy()
 
                         if len(train_df) < 2000:
                             logger.warning(f"    Insufficient training data ({len(train_df)} rows). Skipping.")
@@ -337,34 +346,32 @@ def main():
                             continue
 
                         val_start = target_dt - pd.DateOffset(days=30)
-                        val_df = full_feature_df[
-                            (full_feature_df["ds"] >= val_start) & (full_feature_df["ds"] < target_dt)
+                        val_df = feature_df_by_task[task][
+                            (feature_df_by_task[task]["ds"] >= val_start) & (feature_df_by_task[task]["ds"] < target_dt)
                         ].copy()
 
                         adapter.train(train_df, eval_df=val_df)
-                        result = adapter.predict_day(full_feature_df, target_date_str, task=task)
+                        result = adapter.predict_day(feature_df_by_task[task], target_date_str, task=task)
 
                     elif model_name in ("chronos2_zero_shot", "chronos_bolt_zero_shot"):
                         result = adapter.predict_day(raw_df, target_date_str, task=task, y_col="y")
 
                     elif model_name == "tabpfn_ts_sota":
-                        # Build features on full data (once)
-                        if "full_feature_df" not in dir() or full_feature_df is None:
-                            full_feature_df = build_features(raw_df)
+                        # feature_df_by_task[task] was built at start of task loop
                         # Determine training window
                         if args.train_window == "months":
                             train_start = target_dt - pd.DateOffset(months=args.train_months)
-                            train_df = full_feature_df[
-                                (full_feature_df["ds"] >= train_start) & (full_feature_df["ds"] < target_dt)
+                            train_df = feature_df_by_task[task][
+                                (feature_df_by_task[task]["ds"] >= train_start) & (feature_df_by_task[task]["ds"] < target_dt)
                             ].copy()
                         else:
-                            train_df = full_feature_df[full_feature_df["ds"] < target_dt].copy()
+                            train_df = feature_df_by_task[task][feature_df_by_task[task]["ds"] < target_dt].copy()
                         if len(train_df) < 2000:
                             logger.warning(f"    Insufficient training data ({len(train_df)} rows). Skipping.")
                             run_manifest["failed_dates"].append(f"{target_date_str}:{model_name}:no_train_data")
                             continue
                         adapter.train(train_df)
-                        result = adapter.predict_day(full_feature_df, target_date_str, task=task)
+                        result = adapter.predict_day(feature_df_by_task[task], target_date_str, task=task)
 
                     elif model_name == "tirex_zero_shot":
                         result = adapter.predict_day(raw_df, target_date_str, task=task, y_col="y")
@@ -476,49 +483,7 @@ def main():
         else:
             logger.warning("target_metrics is empty — skipping summary")
 
-    # ── Try to load baseline outputs from source repo ──
-    baseline_map = {}
-    if args.source_repo:
-        repo = Path(args.source_repo)
-        logger.info("Checking for original baseline outputs...")
-        for task in tasks:
-            for sota_model in models:
-                baseline_model = None
-                if sota_model == "catboost_sota":
-                    baseline_model = "lightgbm"
-                elif "chronos" in sota_model:
-                    baseline_model = "timesfm"
-                if baseline_model:
-                    candidates = []
-                    if baseline_model == "lightgbm":
-                        candidates = [
-                            repo / "fusion_runs" / task / "lightgbm_output.csv",
-                            repo / "lightGBM" / "outputs" / f"lightgbm_{task}.csv",
-                            repo / "outputs" / f"lightgbm_{task}.csv",
-                        ]
-                    elif baseline_model == "timesfm":
-                        candidates = [
-                            repo / "fusion_runs" / task / "timesfm_output.csv",
-                            repo / "TimesFM" / "output" / f"timesfm_{task}.csv",
-                            repo / "outputs" / f"timesfm_{task}.csv",
-                        ]
-                    for c in candidates:
-                        if c.exists():
-                            logger.info(f"  Baseline found: {c}")
-                            baseline_map[f"{baseline_model}_{task}"] = str(c)
-                            break
-        run_manifest["baselines_loaded"] = {
-            k: "found" for k in baseline_map
-        } if baseline_map else {"status": "not_found"}
-    else:
-        run_manifest["baselines_loaded"] = {"status": "no_source_repo"}
-
-    # Save baseline info to debug
-    baseline_path = output_root / "debug" / "baselines_found.json"
-    with open(str(baseline_path), "w", encoding="utf-8") as f:
-        json.dump(run_manifest["baselines_loaded"], f, ensure_ascii=False, indent=2)
-
-    # ── Check issues ──
+    # ── Check data quality issues ──
     issues = _check_nan_and_missing(all_predictions, expected_dates)
     issues_path = output_root / "debug" / "data_quality_issues.json"
     with open(str(issues_path), "w", encoding="utf-8") as f:
