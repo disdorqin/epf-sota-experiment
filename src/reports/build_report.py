@@ -74,12 +74,18 @@ def build_report(
         lines.append(f"- **{m}**")
     lines.append("")
 
-    if chronos_fallback and any(v.get("is_fallback") for v in chronos_fallback.values()):
+    if chronos_fallback:
         lines.append("### ⚠️ Chronos Fallback Status")
-        for k, v in chronos_fallback.items():
-            if v.get("is_fallback"):
-                lines.append(f"- **{k}**: fallback→{v.get('loaded', 'N/A')}")
-                lines.append(f"  Reason: {v.get('reason', 'unknown')}")
+        if isinstance(chronos_fallback, dict):
+            for k, v in chronos_fallback.items():
+                if isinstance(v, dict):
+                    if v.get("is_fallback"):
+                        lines.append(f"- **{k}**: fallback→{v.get('loaded', 'N/A')}")
+                        lines.append(f"  Reason: {v.get('reason', 'unknown')}")
+                else:
+                    lines.append(f"- **{k}**: {v}")
+        else:
+            lines.append(f"- {chronos_fallback}")
         lines.append("")
 
     # ── 2. Overall Summary ──
