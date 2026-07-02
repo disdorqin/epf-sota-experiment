@@ -68,7 +68,13 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df["net_load"] = df["load"] - df["wind"] - df["solar"]
     df["solar_ratio"] = df["solar"] / safe_load
     df["net_load_sq"] = (df["net_load"] / 1000) ** 2
-    df["bidding_space"] = df["net_load"] - df["interconnect"]
+
+    # billing_space: prefer raw column from data; fallback to net_load - interconnect
+    if "bidding_space_raw" in df.columns and df["bidding_space_raw"].notna().sum() > 0:
+        df["bidding_space"] = df["bidding_space_raw"]
+    else:
+        df["bidding_space"] = df["net_load"] - df["interconnect"]
+
     df["space_ratio"] = df["bidding_space"] / safe_load
     df["wind_ratio"] = df["wind"] / safe_load
     df["renew_penetration"] = (df["wind"] + df["solar"]) / safe_load

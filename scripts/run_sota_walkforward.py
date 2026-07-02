@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import traceback
 from datetime import datetime
@@ -49,8 +50,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Walk-forward SOTA model evaluation")
     parser.add_argument("--source-repo", type=str, default=None,
                         help="Path to original repo (for baseline loading if needed)")
-    parser.add_argument("--data-path", type=str,
-                        default="D:\\作业\\大创_挑战杯_互联网\\大学生创新创业计划\\大创实现\\其他资料\\electricity_forecast_model2.0\\data\\shandong_pmos_hourly.csv")
+    parser.add_argument("--data-path", type=str, default=None,
+                        help="Path to CSV data. If omitted, reads from configs/paths.yaml.")
     parser.add_argument("--start", type=str, default="2026-02-01", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", type=str, default="2026-02-03", help="End date (YYYY-MM-DD)")
     parser.add_argument("--target", type=str, default="both", choices=["dayahead", "realtime", "both"])
@@ -203,6 +204,17 @@ def _check_nan_and_missing(all_preds: list[pd.DataFrame], expected_dates: list[s
 def main():
     args = parse_args()
 
+    # Resolve data path
+    data_path = args.data_path
+    if data_path is None:
+        try:
+            from src.common.repo_paths import get_data_path
+            data_path = str(get_data_path())
+            logger.info(f"Data path from configs/paths.yaml: {data_path}")
+        except FileNotFoundError as e:
+            logger.error(f"Cannot resolve data path. Provide --data-path or check configs/paths.yaml.\n{e}")
+            sys.exit(1)
+
     output_root = Path(args.output_root)
     output_root.mkdir(parents=True, exist_ok=True)
     (output_root / "predictions").mkdir(parents=True, exist_ok=True)
@@ -215,7 +227,7 @@ def main():
     expected_dates = pd.date_range(start=args.start, end=args.end).strftime("%Y-%m-%d").tolist()
 
     logger.info(f"Walk-forward config:")
-    logger.info(f"  Data:      {args.data_path}")
+    logger.info(f"  Data:      {data_path}")
     logger.info(f"  Range:     {args.start} → {args.end}")
     logger.info(f"  Tasks:     {tasks}")
     logger.info(f"  Models:    {models}")
@@ -223,8 +235,8 @@ def main():
 
     # ── Load data ──
     logger.info("Loading data...")
-    raw_realtime = load_data(args.data_path, target="realtime")
-    raw_dayahead = load_data(args.data_path, target="dayahead")
+    raw_realtime = load_data(data_path, target="realtime")
+    raw_dayahead = load_data(data_path, target="dayahead")
 
     # ── Walk-forward loop ──
     all_predictions = []

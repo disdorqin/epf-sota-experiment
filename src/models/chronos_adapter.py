@@ -179,11 +179,12 @@ class ChronosAdapter:
         """
         Predict next 24 hours given context_values (array of historical prices).
 
-        Uses Chronos-Bolt's quantile-based output directly.
-        Returns dict with y_pred (median/p50) and optional p10/p90.
+        Robustly handles multiple output shapes:
+          - (batch, quantile, horizon) → pick p50 quantile
+          - (batch, sample, horizon)   → median over samples
+          - (batch, horizon)           → direct as p50
 
-        Chronos-Bolt returns (batch_size, num_quantiles, prediction_length)
-        where num_quantiles = 9 for [0.1, 0.2, ..., 0.9].
+        Always returns y_pred (p50); also returns p10/p50/p90 when available.
         """
         if self._pipeline is None:
             raise RuntimeError("Model not loaded. Call load() first.")
@@ -192,33 +193,47 @@ class ChronosAdapter:
 
         context_tensor = torch.tensor(context_values, dtype=torch.float32).unsqueeze(0)
 
-        # Run forecast - ChronosBoltPipeline returns quantiles directly
         forecast = self._pipeline.predict(
             context_tensor,
             prediction_length=self.prediction_length,
         )
 
-        # forecast shape: (1, num_quantiles, prediction_length)
-        forecast_np = forecast.squeeze(0).numpy()  # (num_quantiles, prediction_length)
+        # ── Robust tensor → numpy ──
+        if hasattr(forecast, "detach"):
+            forecast_np = forecast.squeeze(0).detach().cpu().numpy()
+        else:
+            forecast_np = np.asarray(forecast).squeeze(0)
 
-        num_quantiles = forecast_np.shape[0]
-        quantile_indices = {
-            0.1: max(0, int(0.1 * num_quantiles / 0.1) - 1) if num_quantiles >= 9 else 0,
-            0.5: int(0.5 * (num_quantiles - 1)),
-            0.9: min(num_quantiles - 1, int(0.9 * num_quantiles)),
-        }
-        # More robust: compute exact indices
-        q_labels = np.linspace(0.1, 0.9, num_quantiles) if num_quantiles == 9 else np.linspace(0, 1, num_quantiles)
-        idx_p50 = np.argmin(np.abs(q_labels - 0.5))
-        idx_p10 = np.argmin(np.abs(q_labels - 0.1))
-        idx_p90 = np.argmin(np.abs(q_labels - 0.9))
+        # ── Handle multiple output shapes ──
+        result: dict[str, np.ndarray] = {}
 
-        result = {
-            "y_pred": forecast_np[idx_p50],
-            "y_pred_p10": forecast_np[idx_p10],
-            "y_pred_p50": forecast_np[idx_p50],
-            "y_pred_p90": forecast_np[idx_p90],
-        }
+        if forecast_np.ndim == 2:
+            n_dim1 = forecast_np.shape[0]
+            n_dim2 = forecast_np.shape[1]
+
+            if n_dim2 == self.prediction_length:
+                # shape (quantile|sample, horizon)
+                # Try to identify if this is quantiles (9) or samples
+                if n_dim1 == 9:
+                    # Chronos-Bolt: 9 quantiles [0.1..0.9]
+                    result["y_pred"] = forecast_np[4]       # p50 at index 4
+                    result["y_pred_p10"] = forecast_np[0]
+                    result["y_pred_p50"] = forecast_np[4]
+                    result["y_pred_p90"] = forecast_np[8]
+                else:
+                    # Unknown dim1 → median across all
+                    result["y_pred"] = np.median(forecast_np, axis=0)
+                    result["y_pred_p10"] = np.percentile(forecast_np, 10, axis=0)
+                    result["y_pred_p50"] = np.median(forecast_np, axis=0)
+                    result["y_pred_p90"] = np.percentile(forecast_np, 90, axis=0)
+        elif forecast_np.ndim == 1 and len(forecast_np) == self.prediction_length:
+            # direct (horizon,) output
+            result["y_pred"] = forecast_np
+            result["y_pred_p50"] = forecast_np
+        else:
+            # fallback: just use as-is
+            result["y_pred"] = forecast_np.ravel()
+
         return result
 
     def predict_day(

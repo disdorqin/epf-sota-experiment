@@ -2,8 +2,8 @@
 output_schema.py — Long-table output format matching fusion/contracts.py.
 
 Final output (long table) has columns:
-    task, model_name, target_day, ds, hour_business, period, y_pred, y_true,
-    source, run_mode, created_at
+    task, model_name, target_day, business_day, ds, hour_business, period,
+    y_pred, y_true, source, run_mode, created_at
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ REQUIRED_COLUMNS = [
     "task",
     "model_name",
     "target_day",
+    "business_day",
     "ds",
     "hour_business",
     "period",
@@ -47,14 +48,18 @@ def make_long_table(
     1. Derives business_day and hour_business from ds
     2. Infers period from hour_business
     3. Sets default / fills missing columns
+
+    Important business_time invariants:
+        - hour_business = 24 → ds = D+1 00:00 → business_day = D
+        - hour_business = 1  → ds = D 01:00     → business_day = D
     """
     out = df.copy()
-    n = len(out)
 
     # ── Derive business time ──
     biz = business_time_mapping(out["ds"])
     out["hour_business"] = biz["hour_business"]
     out["period"] = biz["period"]
+    out["business_day"] = biz["business_day"].astype(str)
 
     # ── target_day: use provided or derive from business_day ──
     if "target_day" not in out.columns:

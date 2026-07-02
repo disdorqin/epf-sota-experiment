@@ -14,9 +14,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 # ── Default locations ──────────────────────────────────────────────
-_DEFAULT_REPO = (
-    Path("D:/作业/大创_挑战杯_互联网/大学生创新创业计划/大创实现/其他资料/electricity_forecast_model2.0")
-)
+_DEFAULT_REPO_CANDIDATES = [
+    Path("D:/作业/大创_挑战杯_互联网/大学生创新创业计划/大创实现/其他资料/electricity_forecast_model2.0_exp"),
+    Path("D:/作业/大创_挑战杯_互联网/大学生创新创业计划/大创实现/其他资料/electricity_forecast_model2.0"),
+]
 _CONFIGS_DIR = Path(__file__).resolve().parent.parent.parent / "configs"
 _PATHS_YAML = _CONFIGS_DIR / "paths.yaml"
 
@@ -37,9 +38,10 @@ def get_source_repo() -> Path:
         p = Path(repo_str)
         if p.exists():
             return p.resolve()
-    # fallback: default location
-    if _DEFAULT_REPO.exists():
-        return _DEFAULT_REPO.resolve()
+    # fallback: try all default locations
+    for p in _DEFAULT_REPO_CANDIDATES:
+        if p.exists():
+            return p.resolve()
     raise FileNotFoundError(
         f"Source repo not found. Check configs/paths.yaml or supply --source-repo."
     )
@@ -57,8 +59,9 @@ def get_data_path(custom: str | Path | None = None) -> Path:
         p = Path(data_str)
         if p.exists():
             return p.resolve()
-    # fallback: default
-    p = _DEFAULT_REPO / "data" / "shandong_pmos_hourly.csv"
-    if p.exists():
-        return p.resolve()
+    # fallback: try all default locations
+    for repo in _DEFAULT_REPO_CANDIDATES:
+        p = repo / "data" / "shandong_pmos_hourly.csv"
+        if p.exists():
+            return p.resolve()
     raise FileNotFoundError("Data file not found anywhere.")

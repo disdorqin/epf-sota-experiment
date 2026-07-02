@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -36,8 +37,8 @@ logger = logging.getLogger(__name__)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run Chronos single-day zero-shot prediction")
-    parser.add_argument("--data-path", type=str,
-                        default="D:\\作业\\大创_挑战杯_互联网\\大学生创新创业计划\\大创实现\\其他资料\\electricity_forecast_model2.0\\data\\shandong_pmos_hourly.csv")
+    parser.add_argument("--data-path", type=str, default=None,
+                        help="Path to CSV data. If omitted, reads from configs/paths.yaml.")
     parser.add_argument("--target-date", type=str, default="2026-02-15", help="YYYY-MM-DD")
     parser.add_argument("--task", type=str, default="dayahead", choices=["dayahead", "realtime"])
     parser.add_argument("--context-days", type=int, default=30, help="Context window in days")
@@ -51,14 +52,25 @@ def parse_args():
 def main():
     args = parse_args()
 
+    # Resolve data path
+    data_path = args.data_path
+    if data_path is None:
+        try:
+            from src.common.repo_paths import get_data_path
+            data_path = str(get_data_path())
+            logger.info(f"Data path from configs/paths.yaml: {data_path}")
+        except FileNotFoundError as e:
+            logger.error(f"Cannot resolve data path. Provide --data-path or check configs/paths.yaml.\n{e}")
+            sys.exit(1)
+
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     context_length = args.context_days * 24
 
     # ── 1. Load data ──
-    logger.info(f"Loading data from {args.data_path}")
-    df = load_data(args.data_path, target=args.task)
+    logger.info(f"Loading data from {data_path}")
+    df = load_data(data_path, target=args.task)
     logger.info(f"Data loaded: {len(df)} rows, {df['ds'].min()} ~ {df['ds'].max()}")
 
     # ── 2. Load Chronos (with optional fallback) ──

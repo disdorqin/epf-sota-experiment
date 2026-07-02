@@ -62,6 +62,7 @@ def load_data(
     df["wind"] = pd.to_numeric(raw.get(COL_WIND, np.nan), errors="coerce").ffill()
     df["solar"] = pd.to_numeric(raw.get(COL_SOLAR, np.nan), errors="coerce").ffill()
     df["interconnect"] = pd.to_numeric(raw.get(COL_INTERCONNECT, np.nan), errors="coerce").ffill()
+    df["bidding_space_raw"] = pd.to_numeric(raw.get(COL_BIDDING_SPACE, np.nan), errors="coerce").ffill()
 
     df = df.sort_values("ds").reset_index(drop=True)
     return df

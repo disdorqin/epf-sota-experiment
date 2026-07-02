@@ -13,10 +13,15 @@ __pycache__/
 # Training artifacts
 catboost_info/
 
-# Outputs (generated predictions) - keep structure but not data
+# Outputs (generated predictions)
 outputs/*.csv
+outputs/**/*.csv
+outputs/**/*.json
+outputs/**/*.cbm
 outputs/**/predictions/
 outputs/**/metrics/
+outputs/**/debug/
+outputs/**/reports/
 
 # But keep these:
 !outputs/.gitkeep
@@ -39,6 +44,7 @@ RandomForest/
 XGBoost/
 scripts/check_chronos.py
 scripts/test_chronos_adapter.py
+scripts/verify_output.py
 
 # Environment
 .env
