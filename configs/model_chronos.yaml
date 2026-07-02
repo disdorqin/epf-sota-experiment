@@ -1,0 +1,22 @@
+# Chronos model configuration
+model_name: "chronos2_zero_shot"
+fallback_model_name: "chronos_bolt_zero_shot"
+
+# Model selection priority
+priority:
+  - "amazon/chronos-2-small"      # Try Chronos-2 first
+  - "amazon/chronos-bolt-small"   # Fallback to Chronos-Bolt small
+  - "amazon/chronos-bolt-base"    # If resources allow
+
+# Inference parameters
+inference:
+  context_length: 720    # 30 days * 24h
+  prediction_length: 24
+  use_covariates: false  # First version: zero-shot without covariates
+  quantiles: [0.1, 0.5, 0.9]
+
+# Context window options (days)
+context_window_days:
+  min: 14
+  default: 30
+  max: 60

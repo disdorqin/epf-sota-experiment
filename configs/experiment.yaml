@@ -1,0 +1,23 @@
+# Experiment configuration
+experiment_name: "sota_single_model_walkforward"
+description: "External SOTA single-model evaluation for electricity price forecasting"
+
+# Walk-forward configuration
+walkforward:
+  default_context_days: 30
+  min_train_months: 12
+  max_train_months: 24
+
+# Decoder (Chronos) configuration
+decoder:
+  context_days: 30       # 30 days * 24h = 720 context points
+  forecast_horizon: 24
+  quantiles: [0.1, 0.5, 0.9]
+
+# Tree (CatBoost) configuration
+tree:
+  default_n_estimators: 1500
+  default_learning_rate: 0.03
+  default_max_depth: 8
+  default_l2_leaf_reg: 5.0
+  early_stopping_rounds: 100

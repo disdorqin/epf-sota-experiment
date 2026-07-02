@@ -1,0 +1,27 @@
+# ========================================================
+# SOTA Experiment — Core Dependencies
+# ========================================================
+
+# ── ML / Tree models ──
+catboost>=1.2
+
+# ── ML / Time-series foundation models (Chronos) ──
+# Provides ChronosPipeline (Chronos-2) and ChronosBoltPipeline (Chronos-Bolt)
+chronos-forecasting>=2.3
+
+# ── Data processing ──
+pandas>=1.5
+numpy>=1.24
+pyyaml>=6.0
+
+# ── PyTorch (required by Chronos) ──
+torch>=2.0
+
+# ── HuggingFace transformers (for model loading) ──
+transformers>=5.0
+
+# ── Evaluation ──
+scikit-learn>=1.2
+
+# ── Optional: for Excel reading ──
+openpyxl>=3.1

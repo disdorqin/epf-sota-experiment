@@ -1,0 +1,45 @@
+# Compiled / binary model files (too large for Git)
+CatBoost/*.cbm
+LightGBM/*.pkl
+RandomForest/*.pkl
+XGBoost/*.pkl
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Training artifacts
+catboost_info/
+
+# Outputs (generated predictions) - keep structure but not data
+outputs/*.csv
+outputs/**/predictions/
+outputs/**/metrics/
+
+# But keep these:
+!outputs/.gitkeep
+!outputs/debug/source_repo_scan.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test outputs
+outputs/test_*/
+
+# Pre-existing files from other projects (not part of SOTA experiment)
+其他模型/
+CatBoost/
+LightGBM/
+RandomForest/
+XGBoost/
+scripts/check_chronos.py
+scripts/test_chronos_adapter.py
+
+# Environment
+.env
+*.venv

@@ -1,0 +1,49 @@
+{
+  "scan_time": "2026-07-01T20:33:36+08:00",
+  "repo_path": "D:\\作业\\大创_挑战杯_互联网\\大学生创新创业计划\\大创实现\\其他资料\\electricity_forecast_model2.0",
+  "files_found": {
+    "data/shandong_pmos_hourly.csv": {
+      "exists": true,
+      "columns": [
+        "时刻", "日前电价", "实时电价",
+        "地方电厂总加预测值", "联络线受电负荷预测值", "风电总加预测值", "光伏总加预测值",
+        "核电总加预测值", "自备机组总加预测值", "试验机组总加预测值",
+        "直调负荷预测值", "竞价空间预测值", "新能源总加预测值",
+        "地方电厂总加实际值", "联络线受电负荷实际值", "风电总加实际值",
+        "光伏总加实际值", "核电总加实际值", "自备机组总加实际值",
+        "试验机组总加实际值", "直调负荷实际值", "竞价空间实际值", "新能源总加实际值"
+      ],
+      "start_date": "2022-01-01",
+      "hourly": true
+    },
+    "fusion/adapters/base.py": { "exists": true, "path": "fusion/adapters/base.py" },
+    "fusion/adapters/lightgbm.py": { "exists": true, "path": "fusion/adapters/lightgbm.py" },
+    "fusion/adapters/timesfm.py": { "exists": true, "path": "fusion/adapters/timesfm.py" },
+    "fusion/contracts.py": { "exists": true, "path": "fusion/contracts.py" },
+    "fusion/metrics.py": { "exists": true, "path": "fusion/metrics.py" },
+    "lightGBM/train_fix.py": { "exists": true, "path": "lightGBM/train_fix.py" },
+    "lightGBM/infer_fix.py": { "exists": true, "path": "lightGBM/infer_fix.py" },
+    "rolling_oof/": { "exists": false, "note": "Functionality moved to fusion/ namespace" },
+    "ledger/": { "exists": false, "note": "Not present in this repo version" },
+    "pipelines/production_pipeline.py": { "exists": false }
+  },
+  "key_observations": {
+    "feature_count": 21,
+    "feature_list": [
+      "hour", "month", "day_of_week", "is_weekend",
+      "lag_price_target", "lag_price_week",
+      "load", "wind", "solar", "interconnect",
+      "bidding_space", "space_ratio",
+      "net_load", "solar_ratio", "net_load_sq",
+      "wind_ratio", "renew_penetration", "ramp_load", "ramp_solar",
+      "morning_mean", "noon_min", "morning_std", "morning_trend", "is_info_fresh"
+    ],
+    "business_time_rule": "ds - 1s offset; hour+1 mapping; 00:00 -> prev day 24:00",
+    "periods": { "1_8": "valley", "9_16": "solar", "17_24": "peak" },
+    "y_column_map": { "dayahead": "日前电价", "realtime": "实时电价" },
+    "lightgbm_3stage": true,
+    "lightgbm_classifier_correction": true,
+    "timesfm_zero_shot": true
+  },
+  "note": "Experimental zone is separate. Repo mainline will NOT be modified."
+}

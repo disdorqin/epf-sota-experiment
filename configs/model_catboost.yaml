@@ -1,0 +1,29 @@
+# CatBoost model configuration
+model_name: "catboost_sota"
+supported_tasks: ["dayahead", "realtime"]
+
+# Training parameters
+training:
+  iterations: 1500
+  learning_rate: 0.03
+  depth: 8
+  l2_leaf_reg: 5.0
+  random_seed: 42
+  od_type: "Iter"
+  od_wait: 100
+  loss_function: "RMSE"
+  eval_metric: "RMSE"
+  task_type: "CPU"   # Use "GPU" if CUDA is available
+  verbose: false
+  allow_writing_files: false
+
+# Categorical features
+categorical_features:
+  - hour_business
+  - period
+  - day_of_week
+  - month
+  - is_weekend
+
+# Optional (if holiday column exists)
+# - holiday
