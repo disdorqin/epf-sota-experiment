@@ -76,33 +76,6 @@ def _resolve_models(model_str: str) -> list[str]:
     return [m.strip() for m in model_str.split(",") if m.strip()]
 
 
-def _load_baseline_output(source_repo: Optional[str], task: str, model: str) -> Optional[pd.DataFrame]:
-    """Try to load original LightGBM or TimesFM output from the source repo."""
-    if not source_repo:
-        return None
-    repo = Path(source_repo)
-    # Try to find existing outputs from original pipelines
-    candidates = []
-    if model == "lightgbm":
-        candidates = [
-            repo / "fusion_runs" / "dayahead" / "lightgbm_output.csv",
-            repo / "lightGBM" / "outputs" / f"lightgbm_{task}.csv",
-            repo / "outputs" / f"lightgbm_{task}.csv",
-        ]
-    elif model == "timesfm":
-        candidates = [
-            repo / "fusion_runs" / "dayahead" / "timesfm_output.csv",
-            repo / "TimesFM" / "output" / f"timesfm_{task}.csv",
-            repo / "outputs" / f"timesfm_{task}.csv",
-        ]
-
-    for c in candidates:
-        if c.exists():
-            logger.info(f"Found baseline output: {c}")
-            df = pd.read_csv(str(c), encoding="utf-8-sig")
-            return df
-    return None
-
 
 def _save_predictions(all_preds: list[pd.DataFrame], output_dir: Path):
     """Save predictions per model/task."""
