@@ -9,6 +9,13 @@ catboost>=1.2
 # Provides ChronosPipeline (Chronos-2) and ChronosBoltPipeline (Chronos-Bolt)
 chronos-forecasting>=2.3
 
+# ── ML / Tabular Foundation Models (TabPFN) ──
+tabpfn>=0.1
+
+# ── ML / Time-series foundation models (TiRex) ──
+# Zero-shot forecasting with xLSTM
+tirex-ts>=0.1.0
+
 # ── Data processing ──
 pandas>=1.5
 numpy>=1.24

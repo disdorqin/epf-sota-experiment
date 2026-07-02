@@ -38,6 +38,8 @@ from src.common.metrics import compute_all_metrics
 from src.common.output_schema import make_long_table
 from src.models.catboost_adapter import CatBoostAdapter
 from src.models.chronos_adapter import ChronosAdapter
+from src.models.tabpfn_ts_adapter import TabPFNTSAdapter
+from src.models.tirex_adapter import TiRexAdapter
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,6 +65,10 @@ def parse_args():
     parser.add_argument("--train-months", type=int, default=12,
                         help="Training window in months (only used when --train-window=months)")
     parser.add_argument("--device", type=str, default="CPU", help="CatBoost device: CPU/GPU")
+    parser.add_argument("--max-train-rows", type=int, default=50000,
+                        help="Max training rows for TabPFN-TS")
+    parser.add_argument("--allow-model-skip", action="store_true",
+                        help="Allow models to be skipped if unavailable (e.g. TiRex)")
     return parser.parse_args()
 
 
@@ -244,6 +250,7 @@ def main():
     # ── Walk-forward loop ──
     all_predictions = []
     chronos_fallback_info = {}
+    full_feature_df = None  # Will be built when needed
     run_manifest = {
         "start": args.start,
         "end": args.end,
@@ -283,6 +290,21 @@ def main():
                     logger.error(f"Failed to load Chronos: {e}. Skipping.")
                     run_manifest["failed_dates"].append(f"model_load_failed:{model_name}:{task}:{e}")
                     continue
+            elif model_name == "tabpfn_ts_sota":
+                adapter = TabPFNTSAdapter(max_train_rows=args.max_train_rows, device="cpu")
+            elif model_name == "tirex_zero_shot":
+                adapter = TiRexAdapter()
+                loaded = adapter.load()
+                if not loaded:
+                    reason = adapter.unavailable_reason or "unknown"
+                    logger.warning(f"TiRex unavailable: {reason}")
+                    run_manifest["tirex_unavailable_reason"] = reason
+                    if args.allow_model_skip:
+                        logger.warning("Skipping TiRex (--allow-model-skip is set).")
+                        continue
+                    else:
+                        logger.error("TiRex unavailable and --allow-model-skip not set. Exiting.")
+                        sys.exit(1)
             else:
                 logger.error(f"Unknown model: {model_name}")
                 continue
@@ -323,6 +345,28 @@ def main():
                         result = adapter.predict_day(full_feature_df, target_date_str, task=task)
 
                     elif model_name in ("chronos2_zero_shot", "chronos_bolt_zero_shot"):
+                        result = adapter.predict_day(raw_df, target_date_str, task=task, y_col="y")
+
+                    elif model_name == "tabpfn_ts_sota":
+                        # Build features on full data (once)
+                        if "full_feature_df" not in dir() or full_feature_df is None:
+                            full_feature_df = build_features(raw_df)
+                        # Determine training window
+                        if args.train_window == "months":
+                            train_start = target_dt - pd.DateOffset(months=args.train_months)
+                            train_df = full_feature_df[
+                                (full_feature_df["ds"] >= train_start) & (full_feature_df["ds"] < target_dt)
+                            ].copy()
+                        else:
+                            train_df = full_feature_df[full_feature_df["ds"] < target_dt].copy()
+                        if len(train_df) < 2000:
+                            logger.warning(f"    Insufficient training data ({len(train_df)} rows). Skipping.")
+                            run_manifest["failed_dates"].append(f"{target_date_str}:{model_name}:no_train_data")
+                            continue
+                        adapter.train(train_df)
+                        result = adapter.predict_day(full_feature_df, target_date_str, task=task)
+
+                    elif model_name == "tirex_zero_shot":
                         result = adapter.predict_day(raw_df, target_date_str, task=task, y_col="y")
 
                     else:

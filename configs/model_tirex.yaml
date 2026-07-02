@@ -1,0 +1,11 @@
+# TiRex model configuration
+model_name: "tirex_zero_shot"
+supported_tasks: ["dayahead", "realtime"]
+
+# Model selection
+hf_model_id: "NX-AI/TiRex"
+
+# Inference parameters
+inference:
+  context_length: 720    # 30 days * 24h
+  prediction_length: 24

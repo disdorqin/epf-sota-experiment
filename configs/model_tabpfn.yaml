@@ -1,0 +1,9 @@
+# TabPFN-TS model configuration
+model_name: "tabpfn_ts_sota"
+supported_tasks: ["dayahead", "realtime"]
+
+# Training parameters
+training:
+  max_train_rows: 50000
+  device: "cpu"    # Use "cuda" if GPU is available
+  random_seed: 42

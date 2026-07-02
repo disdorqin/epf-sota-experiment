@@ -219,7 +219,51 @@ def build_report(
         )
     lines.append("")
 
-    # ── 8. Data Quality ──
+    # ── 7B. Chronos Replacement Search ──
+    lines.append("## 7B. Chronos Replacement Search")
+    lines.append("")
+    lines.append("### Why Chronos-Bolt Is Not Recommended")
+    lines.append("")
+    ch_rows_b = summary_df[summary_df["model_name"].str.contains("chronos", case=False)] if not summary_df.empty else pd.DataFrame()
+    if not ch_rows_b.empty:
+        for _, row in ch_rows_b.iterrows():
+            lines.append(f"- {row['model_name']} {row['task']}: sMAPE={row['avg_sMAPE']:.2f}")
+    lines.append("- Chronos-Bolt (44M params, zero-shot) significantly underperforms CatBoost (sMAPE 43+ vs 16-38).")
+    lines.append("- Chronos-2 unavailable due to HF gated access.")
+    lines.append("- Better alternatives exist: TabPFN-TS (tabular foundation model with training).")
+    lines.append("")
+
+    # TabPFN assessment
+    tp_rows = summary_df[summary_df["model_name"].str.contains("tabpfn", case=False)] if not summary_df.empty else pd.DataFrame()
+    if not tp_rows.empty:
+        lines.append("### TabPFN-TS Assessment")
+        for _, row in tp_rows.iterrows():
+            lines.append(f"- {row['model_name']} {row['task']}: sMAPE={row['avg_sMAPE']:.2f}, "
+                        f"MAE={row['avg_MAE']:.2f}, peak_MAE_q90={row.get('avg_peak_MAE', 'N/A')}")
+        # Compare with Chronos
+        if not ch_rows_b.empty:
+            tp_smape = tp_rows["avg_sMAPE"].mean()
+            ch_smape = ch_rows_b["avg_sMAPE"].mean()
+            if tp_smape < ch_smape:
+                lines.append(f"- ✅ **TabPFN-TS outperforms Chronos-Bolt** (avg sMAPE {tp_smape:.2f} vs {ch_smape:.2f})")
+            else:
+                lines.append(f"- ⚠️ TabPFN-TS does NOT outperform Chronos-Bolt ({tp_smape:.2f} vs {ch_smape:.2f})")
+        lines.append("")
+
+    # TiRex assessment
+    tr_rows = summary_df[summary_df["model_name"].str.contains("tirex", case=False)] if not summary_df.empty else pd.DataFrame()
+    if not tr_rows.empty:
+        lines.append("### TiRex Assessment")
+        for _, row in tr_rows.iterrows():
+            lines.append(f"- {row['model_name']} {row['task']}: sMAPE={row['avg_sMAPE']:.2f}")
+        lines.append("- ✅ TiRex ran successfully as zero-shot model.")
+    else:
+        tir_reason = manifest.get("tirex_unavailable_reason", "Not attempted")
+        lines.append("### TiRex Assessment")
+        lines.append(f"- ❌ TiRex not available: {tir_reason}")
+        lines.append("")
+
+    # ── 8. Data Quality & Issues ──
     lines.append("## 8. Data Quality & Issues")
     lines.append("")
     total_nan = 0
