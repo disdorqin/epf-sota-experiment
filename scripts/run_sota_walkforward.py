@@ -56,7 +56,8 @@ def parse_args():
                         help="Path to CSV data. If omitted, reads from configs/paths.yaml.")
     parser.add_argument("--start", type=str, default="2026-02-01", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", type=str, default="2026-02-03", help="End date (YYYY-MM-DD)")
-    parser.add_argument("--target", type=str, default="both", choices=["dayahead", "realtime", "both"])
+    parser.add_argument("--target", type=str, default="dayahead",
+                        help="Task target (only dayahead is supported)")
     parser.add_argument("--models", type=str, default="catboost_sota,chronos2_zero_shot",
                         help="Comma-separated model names: catboost_sota, chronos2_zero_shot")
     parser.add_argument("--output-root", type=str, default="outputs/sota_walkforward")
@@ -204,7 +205,7 @@ def main():
     (output_root / "debug").mkdir(parents=True, exist_ok=True)
     (output_root / "reports").mkdir(parents=True, exist_ok=True)
 
-    tasks = ["dayahead", "realtime"] if args.target == "both" else [args.target]
+    tasks = ["dayahead"]
     models = _resolve_models(args.models)
     expected_dates = pd.date_range(start=args.start, end=args.end).strftime("%Y-%m-%d").tolist()
 
@@ -217,7 +218,6 @@ def main():
 
     # ── Load data ──
     logger.info("Loading data...")
-    raw_realtime = load_data(data_path, target="realtime")
     raw_dayahead = load_data(data_path, target="dayahead")
 
     # ── Walk-forward loop ──
@@ -238,12 +238,10 @@ def main():
     }
 
     for task in tasks:
-        raw_df = raw_dayahead if task == "dayahead" else raw_realtime
-
         # Build task-specific feature dataframe (used by CatBoost and TabPFN)
-        feat_df = build_features(raw_df)
+        feat_df = build_features(raw_dayahead)
         feature_df_by_task[task] = feat_df
-        y_col_name = "dayahead" if task == "dayahead" else "realtime"
+        y_col_name = "dayahead"
         logger.info(f"Feature DF for {task}: {len(feat_df)} rows, target column={y_col_name}")
         run_manifest.setdefault("feature_df_debug", {})[task] = {
             "feature_df_task": task,
@@ -327,7 +325,7 @@ def main():
                         result = adapter.predict_day(feature_df_by_task[task], target_date_str, task=task)
 
                     elif model_name in ("chronos2_zero_shot", "chronos_bolt_zero_shot"):
-                        result = adapter.predict_day(raw_df, target_date_str, task=task, y_col="y")
+                        result = adapter.predict_day(raw_dayahead, target_date_str, task=task, y_col="y")
 
                     elif model_name == "tabpfn_ts_sota":
                         # feature_df_by_task[task] was built at start of task loop
@@ -347,7 +345,7 @@ def main():
                         result = adapter.predict_day(feature_df_by_task[task], target_date_str, task=task)
 
                     elif model_name == "tirex_zero_shot":
-                        result = adapter.predict_day(raw_df, target_date_str, task=task, y_col="y")
+                        result = adapter.predict_day(raw_dayahead, target_date_str, task=task, y_col="y")
 
                     else:
                         continue
