@@ -1,8 +1,9 @@
 # Day-Ahead Champion Report
 
 > Generated: 2026-07-03 20:00
-> Task: dayahead
-> Metric: sMAPE_floor50
+> ⚠️ **THIS REPORT IS INVALID** — 11.27% result had data leakage (y_true used in prediction features).
+> See `docs/reports/dayahead_leakage_audit.md` for the full audit.
+> Trusted champion: `docs/reports/dayahead_trusted_champion_report.md`
 
 ## Current Champion
 
