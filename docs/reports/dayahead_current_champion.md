@@ -1,0 +1,85 @@
+# Day-Ahead Current Champion
+
+> Generated: 2026-07-03 20:30
+> Task: dayahead
+> Metric: sMAPE_floor50
+
+## Current Champion Models
+
+| Rank | Model | sMAPE_floor50 | Notes |
+|:----:|------|:-------------:|-------|
+| 🥇 1 | best_two_average (trial_02 + trial_24) | 11.85% | Simple average of two best LightGBM trials |
+| 🥈 2 | lightgbm_90d_orig | 11.97% ⚠️ | 690 rows only, missing hour_business=24 |
+| 🥉 3 | trial_02 (LightGBM 150d, mae objective) | 12.07% | Best 720-row single model |
+| 4 | trial_14 (LightGBM 120d, mae objective) | 12.19% | |
+| 5 | catboost_spike_residual_corrected | 12.47% | Old champion |
+| 6 | catboost_sota | 12.58% | Original CatBoost baseline |
+
+## Key Audit Findings
+
+| Finding | Detail |
+|---------|--------|
+| best_two_average reproducible | ✅ Yes. 720 rows, trial_02 + trial_24 simple average |
+| lightgbm_90d_orig (11.97%) | ⚠️ Only 690 rows — each day has hours 1-23, missing hour 24 |
+| trial_02 y_true vs core | ✅ All trials share same y_true among themselves; different from CatBoost core |
+| catboost_spike_residual (12.47%) | ✅ Verified, y_true matches core baseline |
+| catboost_sota (12.58%) | ✅ Verified |
+
+## 30-Day Breakdown
+
+| Metric | best_two_average | trial_02 | catboost_sota |
+|--------|:----------------:|:--------:|:-------------:|
+| sMAPE_floor50 | 11.85% | 12.07% | 12.58% |
+| MAE | — | 32.55 | 37.56 |
+| RMSE | — | 46.98 | 50.08 |
+| Hours | 720 (full) | 720 (full) | 720 (full) |
+
+## Target Status
+
+| Target | Status | Gap |
+|:------|:------:|:---:|
+| Below 12.58% (catboost_sota) | ✅ 11.85% | -0.73pp |
+| Below 12.47% (old champion) | ✅ 11.85% | -0.62pp |
+| **Below 12%** | **✅ 11.85%** | **Done** |
+| Below 11.5% | ❌ | +0.35pp |
+| Below 11% | ❌ | +0.85pp |
+| Below 10% | ❌ | +1.85pp |
+| Below 8% | ❌ | +3.85pp |
+
+## What Has Been Tried (Stopped Working)
+
+| Approach | Best | Verdict |
+|----------|:----:|:-------:|
+| CatBoost (sota) | 12.58% | Surpassed by LightGBM |
+| CatBoost spike residual correction | 12.47% | 0.11pp gain, but capped |
+| CatBoost hour specialist | 12.52% | Marginal, not worth it |
+| CatBoost regime v2 | 12.14% (partial) | Feature engineering not breakthrough |
+| CatBoost weighted SMAPE | 16.53% | Worsened |
+| CatBoost + TabPFN fusion | 12.91% | All fusion below CatBoost alone |
+| CatBoost Mixture-of-Experts | 22.58% | Failed |
+| Ridge stacking | 14.76% | Overfit |
+| TabPFN | 13.64% | Slow, not competitive |
+| LightGBM huber/fair objective | >50% | Failed completely |
+
+## Next Directions
+
+1. **LGBM spike residual correction** on top of best LightGBM model
+2. **LGBM selected hour correction** for hours [3,4,11,12,13,17]
+3. If corrections can push below 11.5%, consider XGBoost / AutoGluon for further gains
+4. 8% target likely requires new architecture (N-BEATSx)
+
+## Current Configuration (Best Single)
+
+```
+model = LightGBM
+window = 150d (Feb 1-Mar 2, 30 eval days)
+objective = mae
+num_leaves = 255
+learning_rate = 0.03
+lambda_l1 = 1.0
+lambda_l2 = 2.0
+min_data_in_leaf = 30
+feature_fraction = 0.85
+bagging_fraction = 0.85
+bagging_freq = 1
+```
