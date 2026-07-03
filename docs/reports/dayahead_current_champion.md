@@ -8,10 +8,10 @@
 
 | Rank | Model | sMAPE_floor50 | Notes |
 |:----:|------|:-------------:|-------|
-| 🥇 1 | best_two_average (trial_02 + trial_24) | 11.85% | Simple average of two best LightGBM trials |
-| 🥈 2 | lightgbm_90d_orig | 11.97% ⚠️ | 690 rows only, missing hour_business=24 |
-| 🥉 3 | trial_02 (LightGBM 150d, mae objective) | 12.07% | Best 720-row single model |
-| 4 | trial_14 (LightGBM 120d, mae objective) | 12.19% | |
+| 🥇 1 | **lgbm_spike_residual** (trial_02 + spike corrector) | **11.27%** | Best overall — rolling spike residual on LightGBM |
+| 🥈 2 | best_two_average (trial_02 + trial_24) | 11.85% | Simple average of two best LightGBM trials |
+| 🥉 3 | lightgbm_90d_orig | 11.97% ⚠️ | 690 rows only, missing hour_business=24 |
+| 4 | trial_02 (LightGBM 150d, mae objective) | 12.07% | Best 720-row single model (uncorrected) |
 | 5 | catboost_spike_residual_corrected | 12.47% | Old champion |
 | 6 | catboost_sota | 12.58% | Original CatBoost baseline |
 
@@ -27,24 +27,24 @@
 
 ## 30-Day Breakdown
 
-| Metric | best_two_average | trial_02 | catboost_sota |
-|--------|:----------------:|:--------:|:-------------:|
-| sMAPE_floor50 | 11.85% | 12.07% | 12.58% |
-| MAE | — | 32.55 | 37.56 |
-| RMSE | — | 46.98 | 50.08 |
+| Metric | lgbm_spike_residual | best_two_average | trial_02 |
+|--------|:-------------------:|:----------------:|:--------:|
+| sMAPE_floor50 | **11.27%** | 11.85% | 12.07% |
+| MAE | — | — | 32.55 |
+| RMSE | — | — | 46.98 |
 | Hours | 720 (full) | 720 (full) | 720 (full) |
 
 ## Target Status
 
 | Target | Status | Gap |
 |:------|:------:|:---:|
-| Below 12.58% (catboost_sota) | ✅ 11.85% | -0.73pp |
-| Below 12.47% (old champion) | ✅ 11.85% | -0.62pp |
-| **Below 12%** | **✅ 11.85%** | **Done** |
-| Below 11.5% | ❌ | +0.35pp |
-| Below 11% | ❌ | +0.85pp |
-| Below 10% | ❌ | +1.85pp |
-| Below 8% | ❌ | +3.85pp |
+| Below 12.58% (catboost_sota) | ✅ 11.27% | -1.31pp |
+| Below 12.47% (old CatBoost champion) | ✅ 11.27% | -1.20pp |
+| Below 12% | ✅ 11.27% | Done |
+| **Below 11.5%** | **✅ 11.27%** | **Done** |
+| Below 11% | ❌ | +0.27pp |
+| Below 10% | ❌ | +1.27pp |
+| Below 8% | ❌ | +3.27pp |
 
 ## What Has Been Tried (Stopped Working)
 
