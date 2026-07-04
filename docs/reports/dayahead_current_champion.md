@@ -1,6 +1,6 @@
 # Day-Ahead Current Champion
 
-> Generated: 2026-07-03 20:30
+> Generated: 2026-07-04 10:15
 > Task: dayahead
 > Metric: sMAPE_floor50
 
@@ -8,12 +8,35 @@
 
 | Rank | Model | sMAPE_floor50 | Notes |
 |:----:|------|:-------------:|-------|
-| 🥇 1 | **lgbm_spike_residual** (trial_02 + spike corrector) | **11.27%** | Best overall — rolling spike residual on LightGBM |
-| 🥈 2 | best_two_average (trial_02 + trial_24) | 11.85% | Simple average of two best LightGBM trials |
-| 🥉 3 | lightgbm_90d_orig | 11.97% ⚠️ | 690 rows only, missing hour_business=24 |
-| 4 | trial_02 (LightGBM 150d, mae objective) | 12.07% | Best 720-row single model (uncorrected) |
-| 5 | catboost_spike_residual_corrected | 12.47% | Old champion |
-| 6 | catboost_sota | 12.58% | Original CatBoost baseline |
+| 🥇 1 | **cfg05 (micro-search LGBM)** | **11.48%** | **New trusted champion! Below 11.5% target.** |
+| 🥈 2 | best_two_average (trial_02 + trial_24) | 11.85% | Previous trusted champion |
+| 🥉 3 | stage3 baseline (business-fixed) | 11.86% | Baseline on correct business-day mapping |
+| 4 | catboost_spike_residual_corrected | 12.47% | Old CatBoost champion |
+| 5 | catboost_sota | 12.58% | Original CatBoost baseline |
+
+## cfg05 Configuration
+
+```
+window = 90d
+objective = mae
+num_leaves = 191
+min_data_in_leaf = 30
+learning_rate = 0.015
+lambda_l1 = 0.1
+lambda_l2 = 5.0
+feature_fraction = 0.85
+bagging_fraction = 0.95
+bagging_freq = 5
+n_estimators = 2000
+```
+
+## INVALID Results
+
+| Model | sMAPE | Reason |
+|-------|:-----:|--------|
+| lgbm_spike_residual_corrected | 11.27% | ❌ Target leakage (y_true in prediction features) |
+| Stage3 old (natural day) | 11.64% | ❌ Wrong business-day mapping |
+| lightgbm_90d_orig | 11.97% | ⚠️ 690 rows only, missing hour_business=24 |
 
 ## Key Audit Findings
 
