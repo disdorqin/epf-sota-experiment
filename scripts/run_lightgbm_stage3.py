@@ -81,15 +81,15 @@ def build_v3_features(raw: pd.DataFrame) -> pd.DataFrame:
 
     df = build_base(raw)
 
-    # Add hour_business and period
-    adjusted = df["ds"] - pd.Timedelta(seconds=1)
-    df["hour_business"] = adjusted.dt.hour + 1
-    df["period"] = np.select(
-        [df["hour_business"].between(1, 8),
-         df["hour_business"].between(9, 16)],
-        ["1_8", "9_16"],
-        default="17_24",
-    )
+    # ── BUSINESS DAY MAPPING (must use business_time, NOT ds.date()) ──
+    # business_day D has hour_business 1-24 mapping to ds D 01:00 to D+1 00:00
+    from src.common.business_time import business_time_mapping
+
+    biz = business_time_mapping(df["ds"])
+    df["business_day"] = biz["business_day"].astype(str)
+    df["hour_business"] = biz["hour_business"]
+    df["period"] = biz["period"]
+    df["target_day"] = df["business_day"]
 
     # v2 extended features (skip _add_30d_ranks — O(n^2) too slow)
     df = _add_lag_features(df)
@@ -107,10 +107,6 @@ def build_v3_features(raw: pd.DataFrame) -> pd.DataFrame:
     df = _add_change_features(df)
     df = _add_exact_spring_festival(df)
     df = _add_interaction_features(df)
-
-    # Target day / business day
-    df["target_day"] = df["ds"].dt.date.astype(str)
-    df["business_day"] = df["target_day"]
 
     # Fill NaN
     df = df.ffill().fillna(0).reset_index(drop=True)
