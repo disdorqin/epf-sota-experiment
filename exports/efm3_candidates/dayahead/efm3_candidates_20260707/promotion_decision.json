@@ -1,0 +1,30 @@
+{
+  "model_name": "cfg05",
+  "model_version": "v_cfg05",
+  "target_task": "dayahead",
+  "decision": "candidate",
+  "recommended_status": "candidate",
+  "shadow_allowed": false,
+  "champion": false,
+  "gate": "shadow_blocked_until_same_window_validation",
+  "verdict": "PARTIAL",
+  "rationale": [
+    "cfg05 (14.68%, 4 hard months) honestly beats faithful 2.5 ThreeStageLGBM (21.87%, same hard window) -> rich features confirmed better.",
+    "Does NOT prove beating 2.5 trusted champion best_two_average (11.85%) because that was measured on an easier single-month window (Feb1-Mar2); different window, not comparable.",
+    "Old lgbm_spike_residual 11.27% is INVALIDATED (data leakage) and must not be used as baseline.",
+    "Package was missing metrics.json / manifest.json / promotion_decision.json and the original FINAL_REPORT mis-framed 21.87% as 'the 2.5 system' (forbidden comparison)."
+  ],
+  "gate_to_shadow": [
+    "same_window_retest_of_best_two_average on 2025-11~2026-02",
+    "negative_price_classifier added and validated",
+    "period_aware_ensemble (cfg05 + xgboost_rich) validated",
+    "package completed with metrics.json / manifest.json / promotion_decision.json and corrected FINAL_REPORT"
+  ],
+  "forbidden": [
+    "replace_3_0_production_dayahead_model",
+    "write_submission_ready_csv",
+    "modify_main_py_final_outputs_ledger_predict"
+  ],
+  "reviewed_at": "2026-07-07",
+  "reviewed_by": "p1_review_gate"
+}

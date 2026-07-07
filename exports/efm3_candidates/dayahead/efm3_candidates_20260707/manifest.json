@@ -1,0 +1,41 @@
+{
+  "run_id": "run_full_rich_v4",
+  "created_at": "2026-07-07T09:54:16",
+  "source_repo": "epf-sota-experiment",
+  "source_commit": "c3f1604",
+  "target_task": "dayahead",
+  "model_name": "cfg05",
+  "model_version": "v_cfg05",
+  "model_family": "LightGBM",
+  "feature_frame": "rich",
+  "window_days": 90,
+  "data_range": "2022-01 ~ 2026-06 (2026-06 only 19d)",
+  "test_months": ["2025-11", "2025-12", "2026-01", "2026-02"],
+  "n_days": 120,
+  "baseline_reference": {
+    "faithful_2_5_ThreeStageLGBM": 21.87,
+    "trusted_champion_best_two_average": 11.85,
+    "old_cfg05_prior": 11.48,
+    "lgbm_spike_residual_11_27": "INVALIDATED_leakage"
+  },
+  "metric_names": ["sMAPE_floor50", "MAE", "RMSE", "peak_MAE_q90", "negative_price_hit_rate"],
+  "metrics": {
+    "sMAPE_floor50": 14.68,
+    "sMAPE_floor50_180d": 14.25,
+    "period_p1_8": 13.91,
+    "period_p9_16": 16.01,
+    "period_p17_24": 14.12,
+    "spike_sMAPE": 13.51,
+    "normal_sMAPE": 14.81,
+    "negative_price_hit_rate": 72.4
+  },
+  "output_schema_version": "p1_dayahead_candidate_v1",
+  "output_schema": ["business_day", "ds", "hour_business", "period", "y_pred", "model_name", "model_version", "source_repo", "run_id", "y_true"],
+  "leakage_check": "PASS (no D+1 features; y_true is eval target only)",
+  "nan_check": "PASS (NaN_count=0)",
+  "hour_completeness_check": "PASS (120 days x 24 rows, hour_business 1..24, period in {1_8,9_16,17_24})",
+  "gpu_disabled": true,
+  "cpu_only": true,
+  "review_result": "PARTIAL",
+  "recommended_status": "candidate"
+}

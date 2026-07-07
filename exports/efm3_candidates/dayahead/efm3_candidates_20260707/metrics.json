@@ -1,0 +1,194 @@
+{
+  "run_id": "run_full_rich_v4",
+  "test_months": [
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02"
+  ],
+  "overall": [
+    {
+      "MAE": 46.337950638283594,
+      "RMSE": 65.81583540772694,
+      "sMAPE_floor50": 15.752327590322194,
+      "peak_MAE_q90": 65.56195977802146,
+      "negative_price_hit_rate": 63.93034825870647,
+      "high_spike_MAE_q90": 65.56195977802146,
+      "model_name": "catboost_rich",
+      "n_days": 120,
+      "NaN_count": 0,
+      "train_infer_time_s": 350.01
+    },
+    {
+      "MAE": 43.073626666169446,
+      "RMSE": 62.61742440234981,
+      "sMAPE_floor50": 14.678861323786045,
+      "peak_MAE_q90": 64.22154624025677,
+      "negative_price_hit_rate": 72.38805970149254,
+      "high_spike_MAE_q90": 64.22154624025677,
+      "model_name": "cfg05",
+      "n_days": 120,
+      "NaN_count": 0,
+      "train_infer_time_s": 0.0
+    },
+    {
+      "MAE": 43.742111650634804,
+      "RMSE": 62.864190280562575,
+      "sMAPE_floor50": 14.71823800186964,
+      "peak_MAE_q90": 62.02485072920058,
+      "negative_price_hit_rate": 71.64179104477611,
+      "high_spike_MAE_q90": 62.02485072920058,
+      "model_name": "xgboost_rich",
+      "n_days": 120,
+      "NaN_count": 0,
+      "train_infer_time_s": 0.0
+    }
+  ],
+  "period": [
+    {
+      "model_name": "catboost_rich",
+      "period_1_8_sMAPE_floor50": 15.639329165171212,
+      "period_1_8_MAE": 42.63724079285948,
+      "period_9_16_sMAPE_floor50": 17.172745842561238,
+      "period_9_16_MAE": 52.51150778505236,
+      "period_17_24_sMAPE_floor50": 14.444907763234136,
+      "period_17_24_MAE": 43.86510333693894
+    },
+    {
+      "model_name": "cfg05",
+      "period_1_8_sMAPE_floor50": 13.905725282549911,
+      "period_1_8_MAE": 38.78626627471775,
+      "period_9_16_sMAPE_floor50": 16.008273902254675,
+      "period_9_16_MAE": 47.57232235299333,
+      "period_17_24_sMAPE_floor50": 14.122584786553544,
+      "period_17_24_MAE": 42.86229137079725
+    },
+    {
+      "model_name": "xgboost_rich",
+      "period_1_8_sMAPE_floor50": 13.36162441877103,
+      "period_1_8_MAE": 37.80498674813434,
+      "period_9_16_sMAPE_floor50": 16.724708029422473,
+      "period_9_16_MAE": 49.968234795148916,
+      "period_17_24_sMAPE_floor50": 14.068381557415421,
+      "period_17_24_MAE": 43.45311340862114
+    }
+  ],
+  "spike": [
+    {
+      "MAE": 46.337950638283594,
+      "RMSE": 65.81583540772694,
+      "sMAPE_floor50": 15.752327590322194,
+      "spike_MAE": 65.56195977802146,
+      "spike_RMSE": 84.77904202794419,
+      "spike_sMAPE_floor50": 13.844150908411713,
+      "normal_MAE": 44.20194962275716,
+      "normal_sMAPE_floor50": 15.964347221645584,
+      "normal_degradation_vs_overall_MAE": -2.136001015526432,
+      "model_name": "catboost_rich"
+    },
+    {
+      "MAE": 43.073626666169446,
+      "RMSE": 62.61742440234981,
+      "sMAPE_floor50": 14.678861323786045,
+      "spike_MAE": 64.22154624025677,
+      "spike_RMSE": 83.27338014477309,
+      "spike_sMAPE_floor50": 13.514483829434592,
+      "normal_MAE": 40.72385782460419,
+      "normal_sMAPE_floor50": 14.808236600936207,
+      "normal_degradation_vs_overall_MAE": -2.3497688415652576,
+      "model_name": "cfg05"
+    },
+    {
+      "MAE": 43.742111650634804,
+      "RMSE": 62.864190280562575,
+      "sMAPE_floor50": 14.71823800186964,
+      "spike_MAE": 62.02485072920058,
+      "spike_RMSE": 80.86586384585675,
+      "spike_sMAPE_floor50": 12.993479701553984,
+      "normal_MAE": 41.71069619746083,
+      "normal_sMAPE_floor50": 14.909877813015825,
+      "normal_degradation_vs_overall_MAE": -2.0314154531739774,
+      "model_name": "xgboost_rich"
+    }
+  ],
+  "timing": {
+    "cfg05": 0.0,
+    "catboost_rich": 350.01,
+    "xgboost_rich": 0.0
+  },
+  "skipped": {},
+  "month": [
+    {
+      "model_name": "catboost_rich",
+      "month": "2025-11",
+      "sMAPE_floor50": 15.66402347350406,
+      "MAE": 53.60141213197341
+    },
+    {
+      "model_name": "catboost_rich",
+      "month": "2025-12",
+      "sMAPE_floor50": 17.77496669895235,
+      "MAE": 46.435368551105576
+    },
+    {
+      "model_name": "catboost_rich",
+      "month": "2026-01",
+      "sMAPE_floor50": 16.418532145288587,
+      "MAE": 47.182347148578636
+    },
+    {
+      "model_name": "catboost_rich",
+      "month": "2026-02",
+      "sMAPE_floor50": 12.870005087931164,
+      "MAE": 37.51294735516494
+    },
+    {
+      "model_name": "cfg05",
+      "month": "2025-11",
+      "sMAPE_floor50": 15.279543829995065,
+      "MAE": 52.976844659640484
+    },
+    {
+      "model_name": "cfg05",
+      "month": "2025-12",
+      "sMAPE_floor50": 16.39389631163737,
+      "MAE": 42.46095579187214
+    },
+    {
+      "model_name": "cfg05",
+      "month": "2026-01",
+      "sMAPE_floor50": 15.096190415471492,
+      "MAE": 43.64448508409241
+    },
+    {
+      "model_name": "cfg05",
+      "month": "2026-02",
+      "sMAPE_floor50": 11.674441264789237,
+      "MAE": 32.50932832129349
+    },
+    {
+      "model_name": "xgboost_rich",
+      "month": "2025-11",
+      "sMAPE_floor50": 15.392930124746314,
+      "MAE": 52.86037380555968
+    },
+    {
+      "model_name": "xgboost_rich",
+      "month": "2025-12",
+      "sMAPE_floor50": 16.589463083495378,
+      "MAE": 43.60318007699905
+    },
+    {
+      "model_name": "xgboost_rich",
+      "month": "2026-01",
+      "sMAPE_floor50": 14.732615306413807,
+      "MAE": 43.127180143718114
+    },
+    {
+      "model_name": "xgboost_rich",
+      "month": "2026-02",
+      "sMAPE_floor50": 11.90772237124224,
+      "MAE": 34.8071791809698
+    }
+  ]
+}
