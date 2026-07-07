@@ -1,0 +1,52 @@
+{
+  "run_id": "gatefix_v1",
+  "created_at": "2026-07-07T13:11:21",
+  "source_repo": "epf-sota-experiment",
+  "source_commit": "dd22aabd46f24664d7f41f1ac541d15fb536bd68",
+  "target_task": "dayahead",
+  "feature_frame": "rich (cfg05 methodology, ~55 cols)",
+  "window_days": {
+    "cfg05": 90,
+    "cfg05_180d": 180,
+    "xgboost_rich": 90,
+    "ensemble_rich": 90
+  },
+  "data_range": "2022-01 ~ 2026-06",
+  "test_months": [
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02"
+  ],
+  "n_days": 120,
+  "baseline_reference": {
+    "faithful_2_5_ThreeStageLGBM_same_window": 21.87,
+    "trusted_champion_best_two_average_same_window": 15.0436,
+    "old_cfg05_prior_11_48": 11.48,
+    "old_cfg05_prior_note": "NOT reproduced on four hard months",
+    "lgbm_spike_residual_11_27": "INVALIDATED_leakage"
+  },
+  "metric_names": [
+    "sMAPE_floor50",
+    "MAE",
+    "RMSE",
+    "peak_MAE_q90",
+    "negative_price_hit_rate"
+  ],
+  "metrics": {
+    "cfg05_sMAPE_floor50_90d": 14.6789,
+    "cfg05_sMAPE_floor50_180d": 14.2512,
+    "xgboost_rich_sMAPE_floor50": 14.7008,
+    "ensemble_rich_sMAPE_floor50": 14.5442,
+    "trusted_champion_sMAPE_floor50_same_window": 15.0436,
+    "faithful_2_5_sMAPE_floor50": 21.87
+  },
+  "output_schema_version": "p1_dayahead_candidate_v2_gatefix",
+  "leakage_check": "PASS",
+  "nan_check": "PASS",
+  "hour_completeness_check": "PASS",
+  "gpu_disabled": true,
+  "cpu_only": true,
+  "review_result": "PASS",
+  "recommended_status": "shadow"
+}

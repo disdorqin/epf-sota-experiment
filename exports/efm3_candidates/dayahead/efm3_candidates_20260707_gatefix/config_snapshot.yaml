@@ -1,0 +1,28 @@
+# P1.1 Gate-Fix config snapshot
+engine: run_dayahead_p1_walkforward.py
+source_repo: epf-sota-experiment
+source_commit: dd22aabd46f24664d7f41f1ac541d15fb536bd68
+run_id: gatefix_v1
+target_task: dayahead
+feature_frame: rich   # cfg05 methodology, ~55 columns
+test_months: [2025-11, 2025-12, 2026-01, 2026-02]
+n_days: 120
+rich_window_days:
+  cfg05: 90
+  cfg05_180d: 180
+  xgboost_rich: 90
+  ensemble_rich: 90
+train_window_months: 18          # baseline_lgbm25 (faithful 2.5) uses 24f frame, 18-month window
+cpu_only: true                   # FORCED; GPU path disabled for reproducibility
+gpu_disabled: true               # daemon gpu_disabled=true; engine default CPU unless --gpu passed
+engine_gpu_default_fixed: true   # added --gpu flag; default is now CPU (was GPU-preferred -> production hazard)
+sMAPE_definition: sMAPE_floor50  # floor true/pred to 50, then sMAPE*100 (matches 2.5 fusion/metrics.py)
+models_kept:
+  - baseline_lgbm25        # faithful 2.5 ThreeStageLGBM (reference)
+  - cfg05                  # rich 90d (lead shadow candidate)
+  - cfg05_180d             # rich 180d (window ablation)
+  - xgboost_rich           # rich 90d (period-aware ensemble member / backup)
+  - ensemble_rich          # cfg05 + xgboost period-aware ensemble
+baselines_excluded:
+  - lgbm_spike_residual_11_27   # INVALIDATED leakage
+  - old_cfg05_prior_11_48       # different (easier) window, not reproduced on four hard months

@@ -238,7 +238,7 @@ def _detect_gpu():
 
 GPU = _detect_gpu()
 logger.info(f"GPU detection: lightgbm={GPU['lightgbm']} catboost={GPU['catboost']} "
-            f"xgboost={GPU['xgboost']} (GPU 优先，CPU 回退)")
+            f"xgboost={GPU['xgboost']} (default: CPU; pass --gpu to enable)")
 
 def _lgbm_device():
     """LightGBM 设备参数（sklearn API 与 lgb.train 通用）。"""
@@ -740,12 +740,19 @@ def main():
                     help="Skip training: read all per-model checkpoints and merge into combined metrics.json + report.")
     ap.add_argument("--cpu-only", action="store_true",
                     help="Force CPU for ALL models (disable GPU), e.g. when lightgbm GPU hangs.")
+    ap.add_argument("--gpu", action="store_true",
+                    help="Enable GPU for lightgbm/catboost (default: DISABLED; CPU-only for reproducibility).")
     args = ap.parse_args()
 
-    if args.cpu_only:
-        global GPU
+    # P1.1 gate fix: GPU is NO LONGER the default. LightGBM GPU path is known to
+    # deadlock on this machine (0% util, 0MiB, hangs at first tree). CPU is the
+    # safe, reproducible default; opt in explicitly with --gpu.
+    global GPU
+    if args.gpu and not args.cpu_only:
+        logger.info("GPU enabled by --gpu (overrides CPU default)")
+    else:
         GPU = {"lightgbm": False, "catboost": False, "xgboost": False}
-        logger.info("cpu-only mode: GPU disabled by --cpu-only")
+        logger.info("CPU-only (default): GPU disabled. Pass --gpu to enable GPU.")
 
     global RICH_WINDOW_DAYS, OVERRIDE_ROUNDS
     RICH_WINDOW_DAYS = args.rich_window_days

@@ -1,0 +1,31 @@
+{
+  "lead_model": "cfg05",
+  "model_version": "v_cfg05",
+  "target_task": "dayahead",
+  "decision": "shadow",
+  "recommended_status": "shadow",
+  "shadow_allowed": true,
+  "champion": false,
+  "per_model": {
+    "cfg05": "shadow",
+    "cfg05_180d": "shadow",
+    "xgboost_rich": "shadow",
+    "ensemble_rich": "shadow"
+  },
+  "gate": "same_window_validation_passed",
+  "verdict": "PASS",
+  "rationale": [
+    "Same-window trusted champion best_two_average reproduced on 2025-11~2026-02 = 15.04% (n=2760).",
+    "cfg05 (90d) = 14.68%, cfg05 (180d) = 14.25%, xgboost_rich = 14.70% all beat same-window trusted champion AND faithful 2.5 (21.87%) on the four hard months.",
+    "Period breakdown: cfg05 not worse than trusted champion (17_24 within +0.5pp tolerance).",
+    "lgbm_spike_residual 11.27%% INVALIDATED (leakage); old cfg05 11.48%% not reproduced on four hard months -> excluded as baseline.",
+    "Package includes metrics.json / manifest.json / promotion_decision.json and a corrected 10-section gate review report."
+  ],
+  "forbidden": [
+    "replace_3_0_production_dayahead_model",
+    "write_submission_ready_csv",
+    "modify_main_py_final_outputs_ledger_predict"
+  ],
+  "reviewed_at": "2026-07-07",
+  "reviewed_by": "p1_gatefix"
+}
